@@ -27,6 +27,7 @@ import picard.webservice
 
 from picard.util import partial, mimetype
 from PyQt4.QtCore import QUrl, QObject
+from picard.diskcache import DiskCache
 
 # data transliterated from the perl stuff used to find cover art for the
 # musicbrainz server.
@@ -81,6 +82,7 @@ AMAZON_SERVER = {
 AMAZON_IMAGE_PATH = '/images/P/%s.%s.%sZZZZZZZ.jpg'
 AMAZON_ASIN_URL_REGEX = re.compile(r'^http://(?:www.)?(.*?)(?:\:[0-9]+)?/.*/([0-9B][0-9A-Z]{9})(?:[^0-9A-Z]|$)')
 
+
 def _mk_image_filename(image):
     settings = QObject.config.setting
     filename = settings["cover_image_filename"]
@@ -88,7 +90,21 @@ def _mk_image_filename(image):
         filename = "-".join(image.types)
     return filename
 
-def _coverart_downloaded(album, metadata, release, try_list, imagedata, data, http, error):
+def _store_coverart(album, metadata, release, imagedata, data):
+    mime = mimetype.get_from_data(data, default="image/jpeg")
+    imagetypes = imagedata["types"]
+    imagedesc = imagedata["description"]
+    source = imagedata["source"]
+    img = metadata.add_image(mime, data, _mk_image_filename, None,
+                             imagedesc, imagetypes, source=source)
+    for track in album._new_tracks:
+        track.metadata.add_image(mime, data, _mk_image_filename, None,
+                                 imagedesc, imagetypes, source=source)
+    return img.is_front
+
+
+def _coverart_downloaded(album, metadata, release, try_list, imagedata,
+                         diskcache, data, http, error):
     album._requests -= 1
     is_front = False
 
@@ -98,17 +114,15 @@ def _coverart_downloaded(album, metadata, release, try_list, imagedata, data, ht
     else:
         QObject.tagger.window.set_statusbar_message(N_("Coverart %s downloaded"),
                 http.url().toString())
-        mime = mimetype.get_from_data(data, default="image/jpeg")
-        imagetypes = imagedata["types"]
-        imagedesc = imagedata["description"]
-        source = imagedata["source"]
-        img = metadata.add_image(mime, data, _mk_image_filename, None,
-                                 imagedesc, imagetypes, source=source)
-        is_front = img.is_front
-        for track in album._new_tracks:
-            track.metadata.add_image(mime, data, _mk_image_filename, None,
-                                     imagedesc, imagetypes, source=source)
 
+        is_front = _store_coverart(album, metadata, release, imagedata, data)
+        if diskcache is not None:
+            diskcache.write(imagedata, data)
+
+    _post_coverart(album, metadata, release, try_list, is_front)
+
+
+def _post_coverart(album, metadata, release, try_list, is_front = False):
     # If the image already was a front image, there might still be some
     # other front images in the try_list - remove them.
     if is_front:
@@ -219,14 +233,36 @@ def _walk_try_list(album, metadata, release, try_list):
         return
     else:
         # We still have some items to try!
-        album._requests += 1
         url = try_list.pop(0)
-        QObject.tagger.window.set_statusbar_message(N_("Downloading http://%s:%i%s"),
+
+        diskcache = None
+        settings = QObject.config.setting
+        if settings["cache_downloaded_images"]:
+            if 'coverart' not in QObject.tagger.caches:
+                diskcache = DiskCache(ttl=21600, debug=True) # 6 hours
+                QObject.tagger.caches['coverart'] = diskcache
+            else:
+                diskcache = QObject.tagger.caches['coverart']
+        else:
+             if 'coverart' in QObject.tagger.caches:
+                del QObject.tagger.caches['coverart']
+
+        data = None
+        if diskcache is not None:
+            data = diskcache.read(url)
+        if data is not None:
+            QObject.tagger.window.set_statusbar_message(N_("Cached http://%s:%i%s"),
                 url['host'], url['port'], url['path'])
-        album.tagger.xmlws.download(
+            is_front = _store_coverart(album, metadata, release, url, data)
+            _post_coverart(album, metadata, release, try_list, is_front)
+        else:
+            album._requests += 1
+            QObject.tagger.window.set_statusbar_message(N_("Downloading http://%s:%i%s"),
+                url['host'], url['port'], url['path'])
+            album.tagger.xmlws.download(
                 url['host'], url['port'], url['path'],
                 partial(_coverart_downloaded, album, metadata, release,
-                        try_list, url),
+                        try_list, url, diskcache),
                 priority=True, important=True)
 
 

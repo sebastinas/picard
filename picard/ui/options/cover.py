@@ -80,6 +80,7 @@ class CoverOptionsPage(OptionsPage):
     ACTIVE = True
 
     options = [
+        BoolOption("setting", "cache_downloaded_images", True),
         BoolOption("setting", "save_images_to_tags", True),
         BoolOption("setting", "save_only_front_images_to_tags", False),
         BoolOption("setting", "save_images_to_files", False),
@@ -102,6 +103,7 @@ class CoverOptionsPage(OptionsPage):
         self.ui.save_images_to_files.clicked.connect(self.update_filename)
 
     def load(self):
+        self.ui.cache_downloaded_images.setChecked(self.config.setting["cache_downloaded_images"])
         self.ui.save_images_to_tags.setChecked(self.config.setting["save_images_to_tags"])
         self.ui.cb_embed_front_only.setChecked(self.config.setting["save_only_front_images_to_tags"])
         self.ui.save_images_to_files.setChecked(self.config.setting["save_images_to_files"])
@@ -132,6 +134,7 @@ class CoverOptionsPage(OptionsPage):
         return caatype_dict
 
     def save(self):
+        self.config.setting["cache_downloaded_images"] = self.ui.cache_downloaded_images.isChecked()
         self.config.setting["save_images_to_tags"] = self.ui.save_images_to_tags.isChecked()
         self.config.setting["save_only_front_images_to_tags"] = self.ui.cb_embed_front_only.isChecked()
         self.config.setting["save_images_to_files"] = self.ui.save_images_to_files.isChecked()

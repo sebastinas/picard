@@ -24,6 +24,13 @@
        <number>9</number>
       </property>
       <item>
+       <widget class="QCheckBox" name="cache_downloaded_images">
+        <property name="text">
+         <string>Cache downloaded images to disk</string>
+        </property>
+       </widget>
+      </item>
+      <item>
        <widget class="QCheckBox" name="save_images_to_tags">
         <property name="text">
          <string>Embed cover images into tags</string>

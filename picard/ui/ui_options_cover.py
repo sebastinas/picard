@@ -2,7 +2,7 @@
 
 # Form implementation generated from reading ui file 'ui/options_cover.ui'
 #
-# Created: Wed Jan  9 22:41:02 2013
+# Created: Mon Jan 14 11:25:11 2013
 #      by: PyQt4 UI code generator 4.9.6
 #
 # WARNING! All changes made in this file will be lost!
@@ -35,6 +35,9 @@ class Ui_CoverOptionsPage(object):
         self.vboxlayout.setSpacing(2)
         self.vboxlayout.setMargin(9)
         self.vboxlayout.setObjectName(_fromUtf8("vboxlayout"))
+        self.cache_downloaded_images = QtGui.QCheckBox(self.rename_files)
+        self.cache_downloaded_images.setObjectName(_fromUtf8("cache_downloaded_images"))
+        self.vboxlayout.addWidget(self.cache_downloaded_images)
         self.save_images_to_tags = QtGui.QCheckBox(self.rename_files)
         self.save_images_to_tags.setObjectName(_fromUtf8("save_images_to_tags"))
         self.vboxlayout.addWidget(self.save_images_to_tags)
@@ -154,6 +157,7 @@ class Ui_CoverOptionsPage(object):
 
     def retranslateUi(self, CoverOptionsPage):
         self.rename_files.setTitle(_translate("CoverOptionsPage", "Location", None))
+        self.cache_downloaded_images.setText(_translate("CoverOptionsPage", "Cache downloaded images to disk", None))
         self.save_images_to_tags.setText(_translate("CoverOptionsPage", "Embed cover images into tags", None))
         self.cb_embed_front_only.setText(_translate("CoverOptionsPage", "Embed only front images", None))
         self.save_images_to_files.setText(_translate("CoverOptionsPage", "Save cover images as separate files", None))

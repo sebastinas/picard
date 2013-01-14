@@ -96,6 +96,7 @@ class Tagger(QtGui.QApplication):
         self._args = args
         self._autoupdate = autoupdate
         self.config = Config()
+        self.caches = {}
 
         if sys.platform == "win32":
             userdir = os.environ.get("APPDATA", "~\\Application Data")
