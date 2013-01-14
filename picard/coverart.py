@@ -27,6 +27,7 @@ import picard.webservice
 
 from picard.util import partial, mimetype
 from PyQt4.QtCore import QUrl, QObject
+from PyQt4.QtNetwork import QNetworkRequest
 from picard.diskcache import DiskCache
 
 # data transliterated from the perl stuff used to find cover art for the
@@ -263,7 +264,7 @@ def _walk_try_list(album, metadata, release, try_list):
                 url['host'], url['port'], url['path'],
                 partial(_coverart_downloaded, album, metadata, release,
                         try_list, url, diskcache),
-                priority=True, important=True)
+                priority=True, important=True, cacheloadcontrol=QNetworkRequest.PreferCache)
 
 
 def _process_url_relation(try_list, relation):
