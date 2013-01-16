@@ -34,6 +34,10 @@ class BytesToHuman(object):
         self.__bytes_strings_i18n()
 
     def __str__(self):
+        """
+        Convert bytes to short human-readable string
+        decimal or binary mode depending on `BytesToHuman.multiple` property
+        """
         return self.short_string(self.number, self.multiple)
 
     def decimal(self, number):
