@@ -420,6 +420,14 @@ class Album(DataObject, Item):
         else:
             return True
 
+    def is_modified(self):
+        if self.tracks:
+            for track in self.tracks:
+                for file in track.linked_files:
+                    if not file.is_saved():
+                        return True
+        return False
+
     def get_num_unsaved_files(self):
         count = 0
         for track in self.tracks:
