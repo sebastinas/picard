@@ -491,6 +491,30 @@ class BaseTreeView(QtGui.QTreeWidget):
                 self.setCurrentItem(item)
         return QtGui.QTreeWidget.moveCursor(self, action, modifiers)
 
+    def __iter__(self):
+        return TreeWidgetIterator(self)
+
+
+class TreeWidgetIterator(QtGui.QTreeWidgetItemIterator):
+        """Customized QTreeWidgetItemIterator(), supporting true iteration"""
+
+        def __init__(self, *args):
+            QtGui.QTreeWidgetItemIterator.__init__(self, *args)
+            self._started = False
+
+        def __iter__(self):
+            while True:
+                yield self.next()
+
+        def next(self):
+            if self._started:
+                self += 1
+            else:
+                self._started = True
+            value = self.value()
+            if value is None:
+                raise StopIteration
+            return value
 
 class FileTreeView(BaseTreeView):
 
@@ -532,6 +556,32 @@ class AlbumTreeView(BaseTreeView):
         self.setAccessibleDescription(_("Contains albums and matched files"))
         self.tagger.album_added.connect(self.add_album)
         self.tagger.album_removed.connect(self.remove_album)
+        self.header().setContextMenuPolicy(QtCore.Qt.CustomContextMenu)
+        self.header().customContextMenuRequested.connect(self.headerMenu)
+        self.modified_only = False
+
+    def headerMenu(self, pos):
+        globalPos = self.mapToGlobal(pos)
+        menu = QtGui.QMenu(self)
+        self.action_toggle_modified_only = QtGui.QAction(_(u"&Show modified only"), menu)
+        self.action_toggle_modified_only.setCheckable(True)
+        self.action_toggle_modified_only.setChecked(self.modified_only)
+        self.action_toggle_modified_only.triggered.connect(self.toggle_modified_only)
+        menu.addAction(self.action_toggle_modified_only)
+        menu.exec_(globalPos)
+
+    def toggle_modified_only(self, checked):
+        self.modified_only = checked
+        for it in self:
+            if isinstance(it, AlbumItem):
+                if self.modified_only:
+                    album = it.obj
+                    if album.is_modified():
+                        it.setHidden(False)
+                    else:
+                        it.setHidden(True)
+                else:
+                    it.setHidden(False)
 
     def add_album(self, album):
         item = AlbumItem(album, True, self)
