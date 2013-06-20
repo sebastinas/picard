@@ -195,7 +195,7 @@ class Tagger(QtGui.QApplication):
             print(args)
 
         #upgrade from config format without version to first version
-        cfg.register_upgrade_hook(0, 1, upgrade_conf_test, "0 -> 1")
+        cfg.register_upgrade_hook('', '1.0', upgrade_conf_test, "0 -> 1.0")
 
         cfg.run_upgrade_hooks()
 
