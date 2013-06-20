@@ -127,9 +127,9 @@ class Tagger(QtGui.QApplication):
 
         check_io_encoding()
 
-        setup_gettext(localedir, config.setting["ui_language"], log.debug)
-
         self._upgrade_config()
+
+        setup_gettext(localedir, config.setting["ui_language"], log.debug)
 
         self.xmlws = XmlWebService()
 
@@ -193,12 +193,6 @@ class Tagger(QtGui.QApplication):
         def upgrade_conf_test(*args):
             """dummy function to test config upgrades, print its arguments"""
             print(args)
-
-        def upgrade_conf_test_error(*args):
-            """dummy function to test config upgrades, print its arguments and
-            raise an exception"""
-            print(args)
-            raise Exception("this is an error")
 
         #upgrade from config format without version to first version
         cfg.register_upgrade_hook(0, 1, upgrade_conf_test, "0 -> 1")
