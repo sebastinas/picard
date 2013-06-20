@@ -18,7 +18,12 @@
 # Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
 
 from PyQt4 import QtCore
+from picard import config_version, log
 from picard.util import LockableObject, rot13
+
+
+class ConfigUpgradeError(Exception):
+    pass
 
 
 class ConfigSection(LockableObject):
@@ -67,10 +72,15 @@ class Config(QtCore.QSettings):
     def __init__(self):
         """Initializes the configuration."""
         QtCore.QSettings.__init__(self, "MusicBrainz", "Picard")
+        self.application = ConfigSection(self, "application")
         self.setting = ConfigSection(self, "setting")
         self.persist = ConfigSection(self, "persist")
         self.profile = ConfigSection(self, "profile/default")
         self.current_preset = "default"
+
+        IntOption("application", "config_version", 0)
+        self.version = self._from_version = self.application["config_version"]
+        self._upgrade_hooks = []
 
     def switchProfile(self, profilename):
         """Sets the current profile."""
@@ -79,6 +89,54 @@ class Config(QtCore.QSettings):
             self.profile.name = key
         else:
             raise KeyError, "Unknown profile '%s'" % (profilename,)
+
+    def register_upgrade_hook(self, from_version, to_version, func, *args):
+        """Register a function to upgrade from one config version to another"""
+        assert(to_version <= config_version)
+        assert(from_version >= 0)
+        assert(from_version < to_version)
+        hook = {
+            'from': from_version,
+            'to': to_version,
+            'func': func,
+            'args': args,
+            'done': False
+        }
+        self._upgrade_hooks.append(hook)
+
+    def run_upgrade_hooks(self):
+        """Executes registered functions to upgrade config version to the latest"""
+        if not self._upgrade_hooks:
+            return
+        if self._from_version >= config_version:
+            return
+        #remove executed hooks if any, and sort
+        self._upgrade_hooks = sorted([ item for item in self._upgrade_hooks if
+                                     not item['done']], key=lambda k:
+                                     (k['from'], k['to']))
+        for hook in self._upgrade_hooks:
+            if self._from_version < hook['to']:
+                try:
+                    hook['func'](*hook['args'])
+                except Exception as e:
+                    raise ConfigUpgradeError, "Error during config upgrade from version %d to %d using %s(): %s" \
+                           % (self._from_version, hook['to'],
+                              hook['func'].__name__, e)
+                else:
+                    hook['done'] = True
+                    self._from_version = hook['to']
+                    self.write_version(self._from_version)
+
+        # remove executed hooks
+        self._upgrade_hooks = [item for item in self._upgrade_hooks if not item['done']]
+        if not self._upgrade_hooks:
+            # all hooks were executed, ensure config is marked with latest version
+            self._from_version = config_version
+            self.write_version(config_version)
+
+    def write_version(self, version):
+        self.application["config_version"] = version
+        self.sync()
 
 
 class Option(QtCore.QObject):

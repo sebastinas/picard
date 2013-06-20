@@ -129,6 +129,8 @@ class Tagger(QtGui.QApplication):
 
         setup_gettext(localedir, config.setting["ui_language"], log.debug)
 
+        self._upgrade_config()
+
         self.xmlws = XmlWebService()
 
         load_user_collections()
@@ -184,6 +186,24 @@ class Tagger(QtGui.QApplication):
             else:
                 # default format, disabled
                 remove_va_file_naming_format(merge=False)
+
+    def _upgrade_config(self):
+        cfg = config._config
+
+        def upgrade_conf_test(*args):
+            """dummy function to test config upgrades, print its arguments"""
+            print(args)
+
+        def upgrade_conf_test_error(*args):
+            """dummy function to test config upgrades, print its arguments and
+            raise an exception"""
+            print(args)
+            raise Exception("this is an error")
+
+        #upgrade from config format without version to first version
+        cfg.register_upgrade_hook(0, 1, upgrade_conf_test, "0 -> 1")
+
+        cfg.run_upgrade_hooks()
 
     def move_files_to_album(self, files, albumid=None, album=None):
         """Move `files` to tracks on album `albumid`."""

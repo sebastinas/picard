@@ -29,4 +29,4 @@ else:
 __version__ = version_string
 
 api_versions = ["0.15.0", "0.15.1", "0.16.0", "1.0.0", "1.1.0", "1.2.0"]
-
+config_version = 1
