@@ -182,6 +182,8 @@ class XmlWebService(QtCore.QObject):
         key = (host, port)
         self._last_request_times[key] = time.time()
         self._active_requests[reply] = (request, handler, xml)
+        self.num_pending_web_requests += 1
+        self.tagger.tagger_stats_changed.emit()
         return True
 
     @staticmethod
@@ -195,6 +197,9 @@ class XmlWebService(QtCore.QObject):
             leftUrl.toString(QUrl.RemovePort) == rightUrl.toString(QUrl.RemovePort)
 
     def _process_reply(self, reply):
+        self.num_pending_web_requests -= 1
+        self.tagger.tagger_stats_changed.emit()
+
         try:
             request, handler, xml = self._active_requests.pop(reply)
         except KeyError:
@@ -288,13 +293,11 @@ class XmlWebService(QtCore.QObject):
                 log.debug("Last request to %s was %d ms ago, starting another one", key, last_ms)
                 d = request_delay
                 queue.popleft()()
-                self.num_pending_web_requests -= 1
             else:
                 d = request_delay - last_ms
                 log.debug("Waiting %d ms before starting another request to %s", d, key)
             if d < delay:
                 delay = d
-        self.tagger.tagger_stats_changed.emit()
         if delay < sys.maxint:
             self._timer.start(delay)
 
@@ -311,8 +314,6 @@ class XmlWebService(QtCore.QObject):
             queues[key].appendleft(func)
         else:
             queues[key].append(func)
-        self.num_pending_web_requests += 1
-        self.tagger.tagger_stats_changed.emit()
         if not self._timer.isActive():
             self._timer.start(0)
         return (key, func, priority)
@@ -327,9 +328,6 @@ class XmlWebService(QtCore.QObject):
             queue.remove(func)
         except:
             pass
-        else:
-            self.num_pending_web_requests -= 1
-        self.tagger.tagger_stats_changed.emit()
 
     def _get_by_id(self, entitytype, entityid, handler, inc=[], params=[], priority=False, important=False, mblogin=False):
         host = config.setting["server_host"]
