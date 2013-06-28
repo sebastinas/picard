@@ -18,7 +18,7 @@
 # Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
 
 from PyQt4 import QtCore
-from picard import version_info, version_to_string, version_from_string, log
+from picard import __version__, version_info, version_to_string, version_from_string, log
 from picard.util import LockableObject, rot13
 
 
@@ -78,7 +78,7 @@ class Config(QtCore.QSettings):
         self.profile = ConfigSection(self, "profile/default")
         self.current_preset = "default"
 
-        TextOption("application", "version", '')
+        TextOption("application", "version", '0.0')
         self._version = version_from_string(self.application["version"])
         self._upgrade_hooks = []
 
@@ -94,9 +94,9 @@ class Config(QtCore.QSettings):
         """Register a function to upgrade from one config version to another"""
         from_version = version_from_string(from_version_str)
         to_version = version_from_string(to_version_str)
-        assert(to_version <= version_info)
-        assert(from_version >= 0)
-        assert(from_version < to_version)
+        assert to_version <= version_info, "%r > %r !!!" % (to_version, version_info)
+        assert from_version >= (0, 0, 0, 0, 0)
+        assert from_version < to_version, "%r >= %r !!!" % (from_version, to_version)
         hook = {
             'from': from_version,
             'to': to_version,
@@ -111,6 +111,10 @@ class Config(QtCore.QSettings):
         if not self._upgrade_hooks:
             return
         if self._version >= version_info:
+            if self._version > version_info:
+                m = "Warning: config file %r was created by a more recent version of Picard (current is %r)"
+                print(m % (version_to_string(self._version),
+                           version_to_string(version_info)))
             return
         #remove executed hooks if any, and sort
         self._upgrade_hooks = [item for item in self._upgrade_hooks if not item['done']]
@@ -121,12 +125,14 @@ class Config(QtCore.QSettings):
                     hook['func'](*hook['args'])
                 except Exception as e:
                     raise ConfigUpgradeError, "Error during config upgrade from version %d to %d using %s(): %s" \
-                           % (self._version, hook['to'],
-                              hook['func'].__name__, e)
+                        % (self._version, hook['to'], hook['func'].__name__, e)
                 else:
                     hook['done'] = True
                     self._version = hook['to']
                     self._write_version()
+            else:
+                #hook is not applicable, mark as done
+                hook['done'] = True
 
         # remove executed hooks
         self._upgrade_hooks = [item for item in self._upgrade_hooks if not item['done']]

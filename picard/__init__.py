@@ -20,6 +20,11 @@
 import re
 version_info = (1, 2, 0, 'final', 0)
 
+
+class VersionError(Exception):
+    pass
+
+
 def version_to_string(version_info):
     if version_info[3] == 'final':
         if version_info[2] == 0:
@@ -34,8 +39,14 @@ def version_from_string(version_string):
     pattern = r'^(?:(\d+)\.(\d+))?(?:\.(\d+))?(dev|final)?(\d+)?'
     r = re.compile(pattern)
     m = re.match(r, version_string)
-    return tuple([0 if x is None else int(x) if unicode(x).isnumeric() else x
-                  for x in m.groups()])
+    g = m.groups()
+    if g[0] is None and g[1] is None:
+        raise VersionError("Incorrect version string: %s" % version_string)
+    v = [0 if x is None else int(x) if unicode(x).isnumeric() else str(x)
+         for x in g]
+    if v[3] == 0:
+        v[3] = 'final'
+    return tuple(v)
 
 __version__ = version_string = version_to_string(version_info)
 
