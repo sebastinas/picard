@@ -78,7 +78,7 @@ class Config(QtCore.QSettings):
         self.profile = ConfigSection(self, "profile/default")
         self.current_preset = "default"
 
-        TextOption("application", "version", '0.0')
+        TextOption("application", "version", '0.0.0dev0')
         self._version = version_from_string(self.application["version"])
         self._upgrade_hooks = []
 
@@ -90,15 +90,11 @@ class Config(QtCore.QSettings):
         else:
             raise KeyError, "Unknown profile '%s'" % (profilename,)
 
-    def register_upgrade_hook(self, from_version_str, to_version_str, func, *args):
+    def register_upgrade_hook(self, to_version_str, func, *args):
         """Register a function to upgrade from one config version to another"""
-        from_version = version_from_string(from_version_str)
         to_version = version_from_string(to_version_str)
         assert to_version <= version_info, "%r > %r !!!" % (to_version, version_info)
-        assert from_version >= (0, 0, 0, 0, 0)
-        assert from_version < to_version, "%r >= %r !!!" % (from_version, to_version)
         hook = {
-            'from': from_version,
             'to': to_version,
             'func': func,
             'args': args,
@@ -118,7 +114,7 @@ class Config(QtCore.QSettings):
             return
         #remove executed hooks if any, and sort
         self._upgrade_hooks = [item for item in self._upgrade_hooks if not item['done']]
-        self._upgrade_hooks.sort(key=lambda k: (k['from'], k['to']))
+        self._upgrade_hooks.sort(key=lambda k: (k['to']))
         for hook in self._upgrade_hooks:
             if self._version < hook['to']:
                 try:
