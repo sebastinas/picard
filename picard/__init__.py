@@ -21,10 +21,6 @@ import re
 version_info = (1, 2, 0, 'final', 0)
 
 
-class VersionError(Exception):
-    pass
-
-
 def version_to_string(version_info):
     assert len(version_info) == 5
     assert version_info[3] in ('final', 'dev')
