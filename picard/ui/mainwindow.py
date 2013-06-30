@@ -34,8 +34,9 @@ from picard.ui.filebrowser import FileBrowser
 from picard.ui.tagsfromfilenames import TagsFromFileNamesDialog
 from picard.ui.options.dialog import OptionsDialog
 from picard.ui.infodialog import FileInfoDialog, AlbumInfoDialog
+from picard.ui.infostatus import InfoStatus
 from picard.ui.passworddialog import PasswordDialog
-from picard.util import icontheme, webbrowser2, find_existing_path
+from picard.util import icontheme, webbrowser2, find_existing_path, throttle
 from picard.util.cdrom import get_cdrom_drives
 from picard.plugin import ExtensionPoint
 
@@ -208,30 +209,26 @@ class MainWindow(QtGui.QMainWindow):
     def create_statusbar(self):
         """Creates a new status bar."""
         self.statusBar().showMessage(_("Ready"))
-        self.tagger_counts_label = QtGui.QLabel()
+        self.infostatus = InfoStatus(self)
         self.listening_label = QtGui.QLabel()
         self.listening_label.setVisible(False)
         self.listening_label.setToolTip(_("Picard listens on a port to integrate with your browser and downloads release"
                                           " information when you click the \"Tagger\" buttons on the MusicBrainz website"))
-        self.statusBar().addPermanentWidget(self.tagger_counts_label)
+        self.statusBar().addPermanentWidget(self.infostatus)
         self.statusBar().addPermanentWidget(self.listening_label)
         self.tagger.tagger_stats_changed.connect(self.update_statusbar_stats)
         self.tagger.listen_port_changed.connect(self.update_statusbar_listen_port)
         self.update_statusbar_stats()
 
+    @throttle(250)
     def update_statusbar_stats(self):
         """Updates the status bar information."""
-        self.tagger_counts_label.setText(_(
-            " Files: %(files)d, "
-            "Albums: %(albums)d, "
-            "Pending files: %(pfiles)d, "
-            "Pending web lookups: %(web)d ")
-            % {
-            "files": len(self.tagger.files),
-            "pfiles": File.num_pending_files,
-            "albums": len(self.tagger.albums),
-            "web": self.tagger.xmlws.num_pending_web_requests,
-            })
+        self.infostatus.setFiles(len(self.tagger.files))
+        self.infostatus.setAlbums(len(self.tagger.albums))
+        self.infostatus.setPendingFiles(File.num_pending_files)
+        ws = self.tagger.xmlws
+        self.infostatus.setPendingRequests(max(ws.num_pending_web_requests,
+                                               ws.num_active_requests))
 
     def update_statusbar_listen_port(self, listen_port):
         self.listening_label.setVisible(True)
@@ -738,6 +735,7 @@ been merged with that of single artist albums."""),
     def browser_lookup(self):
         self.tagger.browser_lookup(self.selected_objects[0])
 
+    @throttle(100)
     def update_actions(self):
         can_remove = False
         can_save = False

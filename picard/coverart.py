@@ -20,14 +20,15 @@
 # You should have received a copy of the GNU General Public License
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
+
 import json
 import re
 import traceback
 import picard.webservice
-
+from functools import partial
 from picard import config, log
 from picard.metadata import Metadata, is_front_image
-from picard.util import partial, mimetype
+from picard.util import mimetype, parse_amazon_url
 from PyQt4.QtCore import QUrl, QObject
 
 # data transliterated from the perl stuff used to find cover art for the
@@ -81,7 +82,6 @@ AMAZON_SERVER = {
 }
 
 AMAZON_IMAGE_PATH = '/images/P/%s.%s.%sZZZZZZZ.jpg'
-AMAZON_ASIN_URL_REGEX = re.compile(r'^http://(?:www.)?(.*?)(?:\:[0-9]+)?/.*/([0-9B][0-9A-Z]{9})(?:[^0-9A-Z]|$)')
 
 
 def _coverart_downloaded(album, metadata, release, try_list, coverinfos, data, http, error):
@@ -281,18 +281,17 @@ def _process_url_relation(try_list, relation):
             return True
     return False
 
+
 def _process_asin_relation(try_list, relation):
-    match = AMAZON_ASIN_URL_REGEX.match(relation.target[0].text)
-    if match is not None:
-        asinHost = match.group(1)
-        asin = match.group(2)
-        if asinHost in AMAZON_SERVER:
-            serverInfo = AMAZON_SERVER[asinHost]
+    amz = parse_amazon_url(relation.target[0].text)
+    if amz is not None:
+        if amz['host'] in AMAZON_SERVER:
+            serverInfo = AMAZON_SERVER[amz['host']]
         else:
             serverInfo = AMAZON_SERVER['amazon.com']
         host = serverInfo['server']
-        path_l = AMAZON_IMAGE_PATH % (asin, serverInfo['id'], 'L')
-        path_m = AMAZON_IMAGE_PATH % (asin, serverInfo['id'], 'M')
+        path_l = AMAZON_IMAGE_PATH % (amz['asin'], serverInfo['id'], 'L')
+        path_m = AMAZON_IMAGE_PATH % (amz['asin'], serverInfo['id'], 'M')
         _try_list_append_image_url(try_list, QUrl("http://%s:%s" % (host, path_l)))
         _try_list_append_image_url(try_list, QUrl("http://%s:%s" % (host, path_m)))
 

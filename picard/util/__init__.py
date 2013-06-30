@@ -22,9 +22,11 @@ import os
 import re
 import sys
 import unicodedata
+from time import time
 from PyQt4 import QtCore
 from encodings import rot_13;
 from string import Template
+from functools import partial
 
 
 def asciipunct(s):
@@ -252,20 +254,6 @@ def translate_from_sortname(name, sortname):
     return name
 
 
-try:
-    from functools import partial
-except ImportError:
-    def partial(func, *args, **keywords):
-        def newfunc(*fargs, **fkeywords):
-            newkeywords = keywords.copy()
-            newkeywords.update(fkeywords)
-            return func(*(args + fargs), **newkeywords)
-        newfunc.func = func
-        newfunc.args = args
-        newfunc.keywords = keywords
-        return newfunc
-
-
 def find_existing_path(path):
     path = encode_filename(path)
     while path and not os.path.isdir(path):
@@ -325,3 +313,50 @@ def load_release_type_scores(setting):
 
 def save_release_type_scores(scores):
     return " ".join(["%s %.2f" % v for v in scores.iteritems()])
+
+
+def parse_amazon_url(url):
+    """Extract host and asin from an amazon url.
+    It returns a dict with host and asin keys on success, None else
+    """
+    r = re.compile(r'^http://(?:www.)?(?P<host>.*?)(?:\:[0-9]+)?/.*/(?P<asin>[0-9B][0-9A-Z]{9})(?:[^0-9A-Z]|$)')
+    match = r.match(url)
+    if match is not None:
+        return match.groupdict()
+    return None
+
+
+def throttle(interval):
+    """
+    Throttle a function so that it will only execute once per ``interval``
+    (specified in milliseconds).
+    """
+    mutex = QtCore.QMutex()
+
+    def decorator(func):
+        def later(*args, **kwargs):
+            mutex.lock()
+            func(*args, **kwargs)
+            decorator.prev = time()
+            decorator.is_ticking = False
+            mutex.unlock()
+
+        def throttled_func(*args, **kwargs):
+            if decorator.is_ticking:
+                return
+            mutex.lock()
+            now = time()
+            r = interval - (now-decorator.prev)*1000.0
+            if r <= 0:
+                func(*args, **kwargs)
+                decorator.prev = now
+            else:
+                QtCore.QTimer.singleShot(r, partial(later, *args, **kwargs))
+                decorator.is_ticking = True
+            mutex.unlock()
+
+        return throttled_func
+
+    decorator.prev = 0
+    decorator.is_ticking = False
+    return decorator

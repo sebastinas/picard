@@ -24,6 +24,7 @@ import shutil
 import sys
 import re
 import unicodedata
+from functools import partial
 from operator import itemgetter
 from collections import defaultdict
 from PyQt4 import QtCore
@@ -41,7 +42,6 @@ from picard.util import (
     replace_win32_incompat,
     replace_non_ascii,
     sanitize_filename,
-    partial,
     unaccent,
     format_time,
     pathcmp,
@@ -123,8 +123,8 @@ class File(QtCore.QObject, Item):
                     pass
                 else:
                     metadata['tracknumber'] = str(tracknumber)
-        self.orig_metadata.copy(metadata)
-        self.metadata = metadata
+        self.orig_metadata = metadata
+        self.metadata.copy(metadata)
 
     _default_preserved_tags = [
         "~bitrate", "~bits_per_sample", "~format", "~channels", "~filename",
@@ -223,6 +223,7 @@ class File(QtCore.QObject, Item):
             for info in ('~bitrate', '~sample_rate', '~channels',
                          '~bits_per_sample', '~format'):
                 temp_info[info] = self.orig_metadata[info]
+            # Data is copied from New to Original because New may be a subclass to handle id3v23
             if config.setting["clear_existing_tags"]:
                 self.orig_metadata.copy(self.metadata)
             else:
